@@ -9,7 +9,7 @@ function App() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("");
-  const [uploaded, setUploaded] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const uploadFile = async () => {
@@ -17,14 +17,21 @@ function App() {
     setStatus("Uploading and processing your PDF...");
     const formData = new FormData();
     formData.append("file", file);
+
     try {
       const res = await fetch("http://127.0.0.1:8000/upload", {
         method: "POST",
         body: formData,
       });
       const data = await res.json();
+
+      if (data.error) {
+        setStatus(`Error: ${data.error}`);
+        return;
+      }
+
       setStatus(data.message);
-      setUploaded(true);
+      setUploadedFiles(data.files || []);
     } catch (err) {
       setStatus("Upload failed. Make sure your backend is running!");
     }
@@ -32,10 +39,12 @@ function App() {
 
   const askQuestion = async () => {
     if (!question.trim()) return;
+
     const userMessage = { role: "user", text: question };
     setMessages((prev) => [...prev, userMessage]);
     setQuestion("");
     setLoading(true);
+
     try {
       const res = await fetch("http://127.0.0.1:8000/ask", {
         method: "POST",
@@ -43,7 +52,12 @@ function App() {
         body: JSON.stringify({ question }),
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "ai", text: data.answer }]);
+      const aiMessage = {
+        role: "ai",
+        text: data.answer,
+        sources: data.sources || [],
+      };
+      setMessages((prev) => [...prev, aiMessage]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -60,8 +74,13 @@ function App() {
     }
   };
 
-  const handleReset = () => {
-    setUploaded(false);
+  const handleReset = async () => {
+    try {
+      await fetch("http://127.0.0.1:8000/reset", { method: "POST" });
+    } catch (err) {
+      console.error("Reset failed", err);
+    }
+    setUploadedFiles([]);
     setMessages([]);
     setStatus("");
     setFile(null);
@@ -71,13 +90,13 @@ function App() {
     <div className="app-container">
       <Header />
       <UploadSection
-        uploaded={uploaded}
+        uploadedFiles={uploadedFiles}
         status={status}
         onFileChange={setFile}
         onUpload={uploadFile}
         onReset={handleReset}
       />
-      {uploaded && (
+      {uploadedFiles.length > 0 && (
         <ChatSection
           messages={messages}
           question={question}
