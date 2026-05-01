@@ -1,0 +1,15 @@
+.header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  
+  .header-title {
+    font-size: 32px;
+    color: #2e74b5;
+    margin: 0;
+  }
+  
+  .header-sub {
+    color: #666;
+    margin-top: 8px;
+  }
